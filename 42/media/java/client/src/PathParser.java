@@ -1,121 +1,34 @@
 package me.zed_0xff.zb_lua_perf_mon;
 
-import me.zed_0xff.zombie_buddy.Patch;
-import se.krka.kahlua.vm.LuaClosure;
 import zombie.ZomboidFileSystem;
 import zombie.core.znet.SteamWorkshop;
 import java.io.File;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class Main {
-    public static int pcallCount = 0;
-    public static int pcallvoidCount = 0;
+public class PathParser {
+    // Cache for resolved filenames to avoid repeated parsing
+    private static final ConcurrentHashMap<String, FileInfo> filenameCache = new ConcurrentHashMap<>();
     
-    // ThreadLocal to store start time for each thread
-    public static final ThreadLocal<Long> startTime = new ThreadLocal<>();
-    public static final ThreadLocal<Object> currentFuncObj = new ThreadLocal<>();
-
-    @Patch(className = "se.krka.kahlua.integration.LuaCaller", methodName = "pcall")
-    public class Patch_pcall {
-        @Patch.OnEnter
-        public static void enter(@Patch.Argument(1) Object funcObj) {
-            pcallCount++;
-            if (pcallCount % 1000 == 0) {
-                startTime.set(System.nanoTime());
-                currentFuncObj.set(funcObj);
-            }
+    public static FileInfo getFileInfo(String fname) {
+        // Check cache first
+        FileInfo cached = filenameCache.get(fname);
+        if (cached != null) {
+            // Return a new instance with the same data (since FileInfo may be modified)
+            return new FileInfo(cached.prefix, cached.relativePath);
         }
         
-        @Patch.OnExit
-        public static void exit() {
-            if (startTime.get() != null) {
-                long duration = System.nanoTime() - startTime.get();
-                logFunc(currentFuncObj.get(), duration);
-                startTime.remove();
-                currentFuncObj.remove();
-            }
-        }
-    }
-
-    @Patch(className = "se.krka.kahlua.integration.LuaCaller", methodName = "pcallvoid")
-    public class Patch_pcallvoid {
-        @Patch.OnEnter
-        public static void enter(@Patch.Argument(1) Object funcObj) {
-            pcallvoidCount++;
-            if (pcallvoidCount % 1000 == 0) {
-                startTime.set(System.nanoTime());
-                currentFuncObj.set(funcObj);
-            }
+        // Parse the filename
+        FileInfo info = parseFileInfo(fname);
+        
+        // Cache the result (only cache if it's a reasonable size to avoid memory issues)
+        if (fname.length() < 1000) { // Limit cache to reasonable path lengths
+            filenameCache.put(fname, new FileInfo(info.prefix, info.relativePath));
         }
         
-        @Patch.OnExit
-        public static void exit() {
-            if (startTime.get() != null) {
-                long duration = System.nanoTime() - startTime.get();
-                logFunc(currentFuncObj.get(), duration);
-                startTime.remove();
-                currentFuncObj.remove();
-            }
-        }
-    }
-
-    public static void logFunc(Object funcObj, long durationNanos) {
-        FileInfo info = getLuaFileInfoObj(funcObj);
-        // Convert nanoseconds to milliseconds with 3 decimal places
-        double durationMs = durationNanos / 1_000_000.0;
-        // Format: TYPE TIME filename
-        String type = info.prefix != null ? info.prefix : "UNKNOWN";
-        String paddedType = String.format("%-9s", type);
-        System.out.println("[ZBLuaPerfMon] " + paddedType + " " + String.format("%.3f", durationMs) + "ms " + info.relativePath + ":" + info.line);
+        return info;
     }
     
-    private static FileInfo getLuaFileInfoObj(Object funcObj) {
-        if (funcObj instanceof LuaClosure) {
-            LuaClosure closure = (LuaClosure) funcObj;
-            if (closure.prototype != null) {
-                String fname = closure.prototype.filename != null 
-                    ? closure.prototype.filename 
-                    : closure.prototype.file != null 
-                        ? closure.prototype.file 
-                        : "unknown";
-                
-                // Get prefix and relative path in one call
-                FileInfo info = getFileInfo(fname);
-                
-                int line = closure.prototype.lines != null && closure.prototype.lines.length > 0
-                    ? closure.prototype.lines[0]
-                    : 0;
-                
-                if (info.prefix == null) {
-                    info.prefix = "UNKNOWN";
-                }
-                
-                // Create a new FileInfo with the line number
-                return new FileInfo(info.prefix, info.relativePath, line);
-            }
-        }
-        return new FileInfo("UNKNOWN", funcObj != null ? funcObj.toString() : "null", 0);
-    }
-
-    private static class FileInfo {
-        String prefix;
-        String relativePath;
-        int line;
-        
-        FileInfo(String prefix, String relativePath) {
-            this.prefix = prefix;
-            this.relativePath = relativePath;
-            this.line = 0;
-        }
-        
-        FileInfo(String prefix, String relativePath, int line) {
-            this.prefix = prefix;
-            this.relativePath = relativePath;
-            this.line = line;
-        }
-    }
-
-    
-    private static FileInfo getFileInfo(String fname) {
+    private static FileInfo parseFileInfo(String fname) {
         try {
             if (ZomboidFileSystem.instance == null) {
                 return new FileInfo("UNKNOWN", fname);
@@ -124,7 +37,6 @@ public class Main {
             String normalized_fname = fname.replace('\\', '/');
             String cacheDir = ZomboidFileSystem.instance.getCacheDir();
             String relativePath = fname;
-            String prefix = null;
 
             // Check for LOCAL_MOD: cacheDir/mods/...
             if (cacheDir != null) {
@@ -140,15 +52,24 @@ public class Main {
                     return new FileInfo("LOCAL_MOD", relativePath);
                 }
 
-                // Check for WORKSHOP: cacheDir/workshop/...
-                String workshopPrefix = normalizedCacheDir + "/workshop/";
-                if (normalized_fname.startsWith(workshopPrefix)) {
-                    relativePath = normalized_fname.substring(workshopPrefix.length());
-                    // Remove leading separator if present
-                    if (relativePath.startsWith("/")) {
-                        relativePath = relativePath.substring(1);
+                // Check for WORKSHOP: cacheDir/workshop/... (case-insensitive)
+                String workshopPrefixLower = (normalizedCacheDir + "/workshop/").toLowerCase();
+                String normalized_fname_lower = normalized_fname.toLowerCase();
+                if (normalized_fname_lower.startsWith(workshopPrefixLower)) {
+                    // Find the actual position of "/workshop/" in the original path (case-insensitive)
+                    int cacheDirEnd = normalizedCacheDir.length();
+                    String afterCacheDir = normalized_fname.substring(cacheDirEnd);
+                    String afterCacheDirLower = afterCacheDir.toLowerCase();
+                    int workshopIndex = afterCacheDirLower.indexOf("/workshop/");
+                    if (workshopIndex >= 0) {
+                        // Extract everything after "/workshop/"
+                        relativePath = afterCacheDir.substring(workshopIndex + "/workshop/".length());
+                        // Remove leading separator if present
+                        if (relativePath.startsWith("/")) {
+                            relativePath = relativePath.substring(1);
+                        }
+                        return new FileInfo("WORKSHOP", relativePath);
                     }
-                    return new FileInfo("WORKSHOP", relativePath);
                 }
             }
 
@@ -238,7 +159,6 @@ public class Main {
         }
     }
     
-
     private static String stripGameRootDir(String fname) {
         try {
             if (ZomboidFileSystem.instance != null && 
@@ -271,6 +191,15 @@ public class Main {
         }
         return fname;
     }
-
-
+    
+    // Clear cache if needed (e.g., when mods are reloaded)
+    public static void clearCache() {
+        filenameCache.clear();
+    }
+    
+    // Get cache size for debugging
+    public static int getCacheSize() {
+        return filenameCache.size();
+    }
 }
+
