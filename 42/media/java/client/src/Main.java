@@ -9,6 +9,10 @@ import java.io.File;
 public class Main {
     public static int pcallCount = 0;
     public static int pcallvoidCount = 0;
+    
+    // ThreadLocal to store start time for each thread
+    public static final ThreadLocal<Long> startTime = new ThreadLocal<>();
+    public static final ThreadLocal<Object> currentFuncObj = new ThreadLocal<>();
 
     @Patch(className = "se.krka.kahlua.integration.LuaCaller", methodName = "pcall")
     public class Patch_pcall {
@@ -16,7 +20,18 @@ public class Main {
         public static void enter(@Patch.Argument(1) Object funcObj) {
             pcallCount++;
             if (pcallCount % 1000 == 0) {
-                logFunc(funcObj);
+                startTime.set(System.nanoTime());
+                currentFuncObj.set(funcObj);
+            }
+        }
+        
+        @Patch.OnExit
+        public static void exit() {
+            if (startTime.get() != null) {
+                long duration = System.nanoTime() - startTime.get();
+                logFunc(currentFuncObj.get(), duration);
+                startTime.remove();
+                currentFuncObj.remove();
             }
         }
     }
@@ -27,27 +42,33 @@ public class Main {
         public static void enter(@Patch.Argument(1) Object funcObj) {
             pcallvoidCount++;
             if (pcallvoidCount % 1000 == 0) {
-                logFunc(funcObj);
+                startTime.set(System.nanoTime());
+                currentFuncObj.set(funcObj);
+            }
+        }
+        
+        @Patch.OnExit
+        public static void exit() {
+            if (startTime.get() != null) {
+                long duration = System.nanoTime() - startTime.get();
+                logFunc(currentFuncObj.get(), duration);
+                startTime.remove();
+                currentFuncObj.remove();
             }
         }
     }
 
-    public static void logFunc(Object funcObj) {
-        String fileInfo = getLuaFileInfo(funcObj);
-        System.out.println("[ZBLuaPerfMon] " + fileInfo);
+    public static void logFunc(Object funcObj, long durationNanos) {
+        FileInfo info = getLuaFileInfoObj(funcObj);
+        // Convert nanoseconds to milliseconds with 3 decimal places
+        double durationMs = durationNanos / 1_000_000.0;
+        // Format: TYPE TIME filename
+        String type = info.prefix != null ? info.prefix : "UNKNOWN";
+        String paddedType = String.format("%-9s", type);
+        System.out.println("[ZBLuaPerfMon] " + paddedType + " " + String.format("%.3f", durationMs) + "ms " + info.relativePath + ":" + info.line);
     }
-
-    private static class FileInfo {
-        String prefix;
-        String relativePath;
-        
-        FileInfo(String prefix, String relativePath) {
-            this.prefix = prefix;
-            this.relativePath = relativePath;
-        }
-    }
-
-    private static String getLuaFileInfo(Object funcObj) {
+    
+    private static FileInfo getLuaFileInfoObj(Object funcObj) {
         if (funcObj instanceof LuaClosure) {
             LuaClosure closure = (LuaClosure) funcObj;
             if (closure.prototype != null) {
@@ -67,15 +88,32 @@ public class Main {
                 if (info.prefix == null) {
                     info.prefix = "UNKNOWN";
                 }
-
-                // Pad prefix to 9 characters (length of "STEAM_MOD") for alignment
-                String paddedPrefix = String.format("%-9s", info.prefix);
-
-                return paddedPrefix + " " + info.relativePath + ":" + line;
+                
+                // Create a new FileInfo with the line number
+                return new FileInfo(info.prefix, info.relativePath, line);
             }
         }
-        return funcObj != null ? funcObj.toString() : "null";
+        return new FileInfo("UNKNOWN", funcObj != null ? funcObj.toString() : "null", 0);
     }
+
+    private static class FileInfo {
+        String prefix;
+        String relativePath;
+        int line;
+        
+        FileInfo(String prefix, String relativePath) {
+            this.prefix = prefix;
+            this.relativePath = relativePath;
+            this.line = 0;
+        }
+        
+        FileInfo(String prefix, String relativePath, int line) {
+            this.prefix = prefix;
+            this.relativePath = relativePath;
+            this.line = line;
+        }
+    }
+
     
     private static FileInfo getFileInfo(String fname) {
         try {
