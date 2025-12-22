@@ -1,0 +1,10 @@
+name=ZBLuaPerfMon
+id=ZBLuaPerfMon
+author=zed_0xff
+url=https://github.com/zed-0xff
+poster=poster.png
+icon=modIcon.png
+
+require=\ZombieBuddy
+javaJarFile=media/java/client/build/libs/client.jar
+javaPkgName=me.zed_0xff.zb_lua_perf_mon
