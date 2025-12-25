@@ -37,7 +37,7 @@ public class TimingStats {
         }
     }
     
-    public synchronized void addSample(long startTimeNs, long durationNanos, String functionName) {
+    public synchronized void addSample(long startTimeNs, long durationNanos) {
         // Advance buckets based on current time (not sample start time) to keep buckets synchronized
         // This ensures all TimingStats instances advance at the same rate
         long currentTimeNs = System.nanoTime();
@@ -65,15 +65,6 @@ public class TimingStats {
         if (durationNanos < currentBucket.min) currentBucket.min = durationNanos;
         if (durationNanos > currentBucket.max) currentBucket.max = durationNanos;
         // Note: bucketEndTimeNs will be set when this bucket is advanced
-        
-        // DEBUG: Log bucket state and contents (only called for Gauges functions)
-        // if (functionName != null && functionName.contains("Gauges")) {
-        //     String minStr = (currentBucket.min == Long.MAX_VALUE) ? "N/A" : String.valueOf(currentBucket.min);
-        //     String maxStr = (currentBucket.max == Long.MIN_VALUE) ? "N/A" : String.valueOf(currentBucket.max);
-        //     DebugLogger.log(String.format("addSample: bucket[%d] after write: count=%d, sum=%d, min=%s, max=%s, endTime=%d, lastBucketTime=%d, currentTime=%d",
-        //         currentBucketIndex, currentBucket.count, currentBucket.sum, minStr, maxStr, 
-        //         currentBucket.bucketEndTimeNs, lastBucketTime, currentTimeNs));
-        // }
         
         // Update global aggregated stats across all timestamp buckets
         totalCount++;

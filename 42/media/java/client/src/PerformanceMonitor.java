@@ -73,7 +73,7 @@ public class PerformanceMonitor {
             //     functionName, durationNanos / 1_000_000.0, slowKey));
             
             activeKeys.put(slowKey, startTimeNs);
-            statsMap.computeIfAbsent(slowKey, k -> new TimingStats(WINDOW_SIZE)).addSample(startTimeNs, durationNanos, functionName);
+            statsMap.computeIfAbsent(slowKey, k -> new TimingStats(WINDOW_SIZE)).addSample(startTimeNs, durationNanos);
         } else {
             // funcObj is null, skip processing
             return;
