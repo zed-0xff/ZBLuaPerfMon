@@ -31,7 +31,7 @@ public class PathParser {
     private static FileInfo parseFileInfo(String fname) {
         try {
             if (ZomboidFileSystem.instance == null) {
-                return new FileInfo("UNKNOWN", fname);
+                return new FileInfo("UNK", fname);
             }
 
             String normalized_fname = fname.replace('\\', '/');
@@ -49,7 +49,7 @@ public class PathParser {
                     if (relativePath.startsWith("/")) {
                         relativePath = relativePath.substring(1);
                     }
-                    return new FileInfo("LOCAL_MOD", relativePath);
+                    return new FileInfo("LMOD", relativePath);
                 }
 
                 // Check for WORKSHOP: cacheDir/workshop/... (case-insensitive)
@@ -68,7 +68,7 @@ public class PathParser {
                         if (relativePath.startsWith("/")) {
                             relativePath = relativePath.substring(1);
                         }
-                        return new FileInfo("WORKSHOP", relativePath);
+                        return new FileInfo("WMOD", relativePath);
                     }
                 }
             }
@@ -100,7 +100,7 @@ public class PathParser {
                                 } else if (normalizedRelative.startsWith("lua\\")) {
                                     relativePath = relativePath.substring(4); // Skip "lua\\"
                                 }
-                                return new FileInfo("STEAM_MOD", relativePath);
+                                return new FileInfo("SMOD", relativePath);
                             }
                         }
                     }
@@ -135,7 +135,7 @@ public class PathParser {
                     } else if (normalizedRelative.startsWith("lua\\")) {
                         relativePath = relativePath.substring(4); // Skip "lua\\"
                     }
-                    return new FileInfo("STEAM_MOD", relativePath);
+                    return new FileInfo("SMOD", relativePath);
                 }
             }
 
@@ -153,9 +153,9 @@ public class PathParser {
             }
 
             // Couldn't determine source, return as-is
-            return new FileInfo("UNKNOWN", fname);
+            return new FileInfo("UNK", fname);
         } catch (Exception e) {
-            return new FileInfo("UNKNOWN", fname);
+            return new FileInfo("UNK", fname);
         }
     }
     
