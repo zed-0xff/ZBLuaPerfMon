@@ -18,6 +18,7 @@ local config = {
     logWhenOSDOff = nil,
     logIntervalSeconds = nil,
     minTimeMicroseconds = nil,
+    trackInternalPerformance = nil,
     toggleOSDKey = nil,
 }
 
@@ -69,6 +70,9 @@ config.logWhenOSDOff = options:addTickBox("logWhenOSDOff", "Log When OSD Off", f
 
 -- Log Interval
 config.logIntervalSeconds = options:addSlider("logIntervalSeconds", "Log Interval (seconds)", 1, 60, 1, 5, "How often to log performance statistics")
+
+-- Track Internal Performance
+config.trackInternalPerformance = options:addTickBox("trackInternalPerformance", "Track LuaPerfMon Performance", false, "Track performance of the monitoring system itself")
 
 -- Override the apply function to update Java values
 options.apply = function(self)
@@ -122,6 +126,9 @@ options.apply = function(self)
     end
     if config.minTimeMicroseconds then
         ZBLuaPerfMon.setMinTimeMicroseconds(config.minTimeMicroseconds:getValue())
+    end
+    if config.trackInternalPerformance then
+        ZBLuaPerfMon.setTrackInternalPerformance(config.trackInternalPerformance:getValue())
     end
     
     -- Apply keybinding

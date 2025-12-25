@@ -89,4 +89,12 @@ public class ZBLuaPerfMon {
     public static boolean getExcludeGameEntries() {
         return excludeGameEntries;
     }
+
+    public static void setTrackInternalPerformance(boolean enabled) {
+        PerformanceMonitor.trackInternalPerformance = enabled;
+    }
+
+    public static boolean getTrackInternalPerformance() {
+        return PerformanceMonitor.trackInternalPerformance;
+    }
 }

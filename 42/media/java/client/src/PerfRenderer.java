@@ -45,6 +45,19 @@ public class PerfRenderer {
             return;
         }
 
+        if (PerformanceMonitor.trackInternalPerformance) {
+            long renderStartNs = System.nanoTime();
+            renderInternal();
+            long renderDurationNs = System.nanoTime() - renderStartNs;
+            
+            int slowKey = -2;
+            PerformanceMonitor.recordInternalPerformance(slowKey, renderStartNs, renderDurationNs);
+        } else {
+            renderInternal();
+        }
+    }
+    
+    private static void renderInternal() {
         var textMgr = TextManager.instance;
         if (textMgr == null) {
             return;
@@ -184,7 +197,9 @@ public class PerfRenderer {
                 String pathToDisplay = info.relativePath;
                 String prefixStr;
                 
-                if (prefix == FilePrefix.LMOD || prefix == FilePrefix.SMOD || prefix == FilePrefix.WMOD) {
+                if (prefix == FilePrefix.INTERNAL) {
+                    prefixStr = "LuaPerfMon";
+                } else if (prefix == FilePrefix.LMOD || prefix == FilePrefix.SMOD || prefix == FilePrefix.WMOD) {
                     // Extract first folder from path
                     String normalizedPath = pathToDisplay.replace('\\', '/');
                     int firstSlash = normalizedPath.indexOf('/');
@@ -207,7 +222,13 @@ public class PerfRenderer {
                 }
                 
                 // Format path (truncate if too long)
-                String fileDisplay = pathToDisplay + ":" + info.line;
+                // Don't show line number for internal performance tracking or when line is 0 and path doesn't look like a file
+                String fileDisplay;
+                if (info.line > 0 || (pathToDisplay.contains("/") || pathToDisplay.contains("\\"))) {
+                    fileDisplay = pathToDisplay + ":" + info.line;
+                } else {
+                    fileDisplay = pathToDisplay;
+                }
                 String pathStr = fileDisplay.length() > 80 ? fileDisplay.substring(0, 77) + "..." : fileDisplay;
                 
                 result.add(new FormattedCall(timeStr, countStr, prefixStr, pathStr, r, g, b));

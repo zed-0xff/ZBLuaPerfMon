@@ -5,6 +5,7 @@ public enum FilePrefix {
     LMOD,  // Local mod
     SMOD,  // Steam mod
     WMOD,  // Workshop mod
+    INTERNAL,  // Internal LuaPerfMon metrics
     UNK    // Unknown
 }
 

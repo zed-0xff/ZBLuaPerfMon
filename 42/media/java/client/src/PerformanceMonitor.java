@@ -11,6 +11,7 @@ public class PerformanceMonitor {
     public static final int WINDOW_SIZE = 1000; // Keep last 1000 samples per callee
     public static int logIntervalSeconds = 5; // Log stats every N seconds (default 5)
     public static boolean logEnabled = false;
+    public static boolean trackInternalPerformance = false;
     
     private static volatile long lastLogTime = System.nanoTime();
     private static final Object logLock = new Object();
@@ -19,6 +20,22 @@ public class PerformanceMonitor {
     private static final long ACTIVE_KEY_TTL_NS = 60_000_000_000L; // 60 seconds in nanoseconds
     // Cache of excluded slowKeys (GAME entries) to avoid repeated path parsing
     private static final Set<Integer> excludedSlowKeys = ConcurrentHashMap.newKeySet();
+
+    // Initialize internal performance tracking entries
+    private static void initInternalPerformanceTracking() {
+        String recordTimingName = "LuaPerfMon.recordTiming()";
+        slowKeyToName.put(-1, recordTimingName);
+        nameToSlowKey.put(recordTimingName, -1);
+        
+        String renderName = "LuaPerfMon.render()";
+        slowKeyToName.put(-2, renderName);
+        nameToSlowKey.put(renderName, -2);
+    }
+
+    // Static initializer to set up internal performance tracking entry
+    static {
+        initInternalPerformanceTracking();
+    }
     
     public static void reset() {
         statsMap.clear();
@@ -28,13 +45,34 @@ public class PerformanceMonitor {
         nameToSlowKey.clear();
         excludedSlowKeys.clear();
         lastLogTime = System.nanoTime();
+
+        initInternalPerformanceTracking();
     }
     
     public static void clearExcludedSlowKeys() {
         excludedSlowKeys.clear();
     }
+    
+    // Record internal performance tracking (for render, etc.)
+    public static void recordInternalPerformance(int slowKey, long startTimeNs, long durationNanos) {
+        activeKeys.put(slowKey, startTimeNs);
+        statsMap.computeIfAbsent(slowKey, k -> new TimingStats(WINDOW_SIZE)).addSample(startTimeNs, durationNanos);
+    }
 
     public static void recordTiming(Object funcObj, long startTimeNs, long durationNanos) {
+        if (trackInternalPerformance) {
+            long recordStartNs = System.nanoTime();
+            recordTimingInternal(funcObj, startTimeNs, durationNanos);
+            long recordDurationNs = System.nanoTime() - recordStartNs;
+
+            int slowKey = -1;
+            recordInternalPerformance(slowKey, recordStartNs, recordDurationNs);
+        } else {
+            recordTimingInternal(funcObj, startTimeNs, durationNanos);
+        }
+    }
+
+    private static void recordTimingInternal(Object funcObj, long startTimeNs, long durationNanos) {
         int slowKey = 0;
         String name;
         
@@ -162,9 +200,17 @@ public class PerformanceMonitor {
                 FileInfo info = entry.info;
                 TimingStats.WindowStats windowStats = entry.windowStats;
                 
-                String type = info.prefix != null ? info.prefix.name() : FilePrefix.UNK.name();
+                String type = info.prefix != null 
+                    ? (info.prefix == FilePrefix.INTERNAL ? "LuaPerfMon" : info.prefix.name())
+                    : FilePrefix.UNK.name();
                 String paddedType = String.format("%-9s", type);
-                String fileDisplay = info.relativePath + ":" + info.line;
+                // Don't show line number for internal performance tracking or when line is 0 and path doesn't look like a file
+                String fileDisplay;
+                if (info.line > 0 || (info.relativePath.contains("/") || info.relativePath.contains("\\"))) {
+                    fileDisplay = info.relativePath + ":" + info.line;
+                } else {
+                    fileDisplay = info.relativePath;
+                }
                 
                 // Print just the values (no header labels) using window stats
                 System.out.println(String.format(
@@ -182,7 +228,12 @@ public class PerformanceMonitor {
     }
     
     // Resolve simple key (filename:line) to FileInfo with path parsing
-    private static FileInfo resolveKeyToFileInfo(String name) {
+    private static FileInfo resolveKeyToFileInfo(String name, int slowKey) {
+        // Check if this is an internal performance metric (slowKey -1 or -2)
+        if (slowKey == -1 || slowKey == -2) {
+            return new FileInfo(FilePrefix.INTERNAL, name, 0);
+        }
+        
         int colonIndex = name.lastIndexOf(':');
         if (colonIndex > 0) {
             String fname = name.substring(0, colonIndex);
@@ -241,7 +292,7 @@ public class PerformanceMonitor {
                 if (windowStats == null) {
                     return null;
                 }
-                FileInfo info = resolveKeyToFileInfo(name);
+                FileInfo info = resolveKeyToFileInfo(name, key);
                 return new StatsEntryWithWindow(info, stats, windowStats);
             })
             .filter(entry -> entry != null && entry.windowStats.count > 0)
