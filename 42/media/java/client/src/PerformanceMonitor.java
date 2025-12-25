@@ -36,15 +36,17 @@ public class PerformanceMonitor {
 
     public static void recordTiming(Object funcObj, long startTimeNs, long durationNanos) {
         int slowKey = 0;
+        String name;
+        
         if (funcObj != null) {
             int fastKey = funcObj.hashCode(); // hash of function object, fast, but not unique
             slowKey = fastKeyToSlowKey.computeIfAbsent(fastKey, k -> {
-                String name = getObjName(funcObj);
-                int slowKey_ = name.hashCode(); // hash of function "filename:line" - slower, but unique
+                String name_ = getObjName(funcObj);
+                int slowKey_ = name_.hashCode(); // hash of function "filename:line" - slower, but unique
                 
                 // Check if this is a GAME entry and should be excluded (only check once per unique function)
                 if (ZBLuaPerfMon.excludeGameEntries) {
-                    FileInfo info = PathParser.getFileInfo(name);
+                    FileInfo info = PathParser.getFileInfo(name_);
                     if (info.prefix == FilePrefix.GAME) {
                         // Mark this slowKey as excluded and return a sentinel value
                         excludedSlowKeys.add(slowKey_);
@@ -52,32 +54,39 @@ public class PerformanceMonitor {
                     }
                 }
                 
-                slowKeyToName.put(slowKey_, name);
-                nameToSlowKey.put(name, slowKey_);
+                slowKeyToName.put(slowKey_, name_);
+                nameToSlowKey.put(name_, slowKey_);
                 return slowKey_;
             });
-            
-            // Skip recording if this slowKey is excluded
-            if (excludedSlowKeys.contains(slowKey)) {
-                return; // Don't track GAME entries at all
-            }
-            
-            // Get function name and skip all processing unless it contains "Gauges"
-            String functionName = slowKeyToName.get(slowKey);
-            // if (functionName == null || !functionName.contains("Gauges.lua:70")) {
-            //     return; // Skip all processing for non-Gauges functions
-            // }
-            
-            // DEBUG: Log when recording "Gauges" calls
-            // DebugLogger.log(String.format("recordTiming: %s, duration=%.3fms, slowKey=%d",
-            //     functionName, durationNanos / 1_000_000.0, slowKey));
-            
-            activeKeys.put(slowKey, startTimeNs);
-            statsMap.computeIfAbsent(slowKey, k -> new TimingStats(WINDOW_SIZE)).addSample(startTimeNs, durationNanos);
+            name = slowKeyToName.get(slowKey);
         } else {
-            // funcObj is null, skip processing
-            return;
+            // funcObj is null, use key 0 and name "(null)"
+            slowKey = 0;
+            name = "(null)";
+            // Ensure the name is in the map
+            if (!slowKeyToName.containsKey(slowKey)) {
+                slowKeyToName.put(slowKey, name);
+                nameToSlowKey.put(name, slowKey);
+            }
         }
+        
+        // Skip recording if this slowKey is excluded
+        if (excludedSlowKeys.contains(slowKey)) {
+            return; // Don't track GAME entries at all
+        }
+        
+        // Get function name and skip all processing unless it contains "Gauges"
+        String functionName = slowKeyToName.get(slowKey);
+        // if (functionName == null || !functionName.contains("Gauges.lua:70")) {
+        //     return; // Skip all processing for non-Gauges functions
+        // }
+        
+        // DEBUG: Log when recording "Gauges" calls
+        // DebugLogger.log(String.format("recordTiming: %s, duration=%.3fms, slowKey=%d",
+        //     functionName, durationNanos / 1_000_000.0, slowKey));
+        
+        activeKeys.put(slowKey, startTimeNs);
+        statsMap.computeIfAbsent(slowKey, k -> new TimingStats(WINDOW_SIZE)).addSample(startTimeNs, durationNanos);
     }
     
     // Fast key generation - just uses raw filename and line, no path parsing
