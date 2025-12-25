@@ -80,6 +80,10 @@ public class ZBLuaPerfMon {
 
     public static void setExcludeGameEntries(boolean exclude) {
         excludeGameEntries = exclude;
+        // Clear excluded keys when setting is turned off, so GAME entries can be tracked again
+        if (!exclude) {
+            PerformanceMonitor.clearExcludedSlowKeys();
+        }
     }
 
     public static boolean getExcludeGameEntries() {

@@ -29,6 +29,10 @@ public class PerformanceMonitor {
         excludedSlowKeys.clear();
         lastLogTime = System.nanoTime();
     }
+    
+    public static void clearExcludedSlowKeys() {
+        excludedSlowKeys.clear();
+    }
 
     public static void recordTiming(Object funcObj, long startTimeNs, long durationNanos) {
         int slowKey = 0;
@@ -41,7 +45,7 @@ public class PerformanceMonitor {
                 // Check if this is a GAME entry and should be excluded (only check once per unique function)
                 if (ZBLuaPerfMon.excludeGameEntries) {
                     FileInfo info = PathParser.getFileInfo(name);
-                    if ("GAME".equals(info.prefix)) {
+                    if (info.prefix == FilePrefix.GAME) {
                         // Mark this slowKey as excluded and return a sentinel value
                         excludedSlowKeys.add(slowKey_);
                         return slowKey_;
@@ -149,7 +153,7 @@ public class PerformanceMonitor {
                 FileInfo info = entry.info;
                 TimingStats.WindowStats windowStats = entry.windowStats;
                 
-                String type = info.prefix != null ? info.prefix : "UNK";
+                String type = info.prefix != null ? info.prefix.name() : FilePrefix.UNK.name();
                 String paddedType = String.format("%-9s", type);
                 String fileDisplay = info.relativePath + ":" + info.line;
                 
@@ -183,11 +187,11 @@ public class PerformanceMonitor {
             // Now do the expensive path parsing
             FileInfo info = PathParser.getFileInfo(fname);
             if (info.prefix == null) {
-                info.prefix = "UNK";
+                info.prefix = FilePrefix.UNK;
             }
             return new FileInfo(info.prefix, info.relativePath, line);
         }
-        return new FileInfo("UNK", name, 0);
+        return new FileInfo(FilePrefix.UNK, name, 0);
     }
     
     // Helper class for sorting with window stats

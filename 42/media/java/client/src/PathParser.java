@@ -31,7 +31,7 @@ public class PathParser {
     private static FileInfo parseFileInfo(String fname) {
         try {
             if (ZomboidFileSystem.instance == null) {
-                return new FileInfo("UNK", fname);
+                return new FileInfo(FilePrefix.UNK, fname);
             }
 
             String normalized_fname = fname.replace('\\', '/');
@@ -49,7 +49,7 @@ public class PathParser {
                     if (relativePath.startsWith("/")) {
                         relativePath = relativePath.substring(1);
                     }
-                    return new FileInfo("LMOD", relativePath);
+                    return new FileInfo(FilePrefix.LMOD, relativePath);
                 }
 
                 // Check for WORKSHOP: cacheDir/workshop/... (case-insensitive)
@@ -68,7 +68,7 @@ public class PathParser {
                         if (relativePath.startsWith("/")) {
                             relativePath = relativePath.substring(1);
                         }
-                        return new FileInfo("WMOD", relativePath);
+                        return new FileInfo(FilePrefix.WMOD, relativePath);
                     }
                 }
             }
@@ -100,7 +100,7 @@ public class PathParser {
                                 } else if (normalizedRelative.startsWith("lua\\")) {
                                     relativePath = relativePath.substring(4); // Skip "lua\\"
                                 }
-                                return new FileInfo("SMOD", relativePath);
+                                return new FileInfo(FilePrefix.SMOD, relativePath);
                             }
                         }
                     }
@@ -135,7 +135,7 @@ public class PathParser {
                     } else if (normalizedRelative.startsWith("lua\\")) {
                         relativePath = relativePath.substring(4); // Skip "lua\\"
                     }
-                    return new FileInfo("SMOD", relativePath);
+                    return new FileInfo(FilePrefix.SMOD, relativePath);
                 }
             }
 
@@ -149,13 +149,13 @@ public class PathParser {
                     // Work with normalized path for consistent substring calculation
                     relativePath = normalizedRelative.substring(10); // Skip "media/lua/" (10 chars)
                 }
-                return new FileInfo("GAME", relativePath);
+                return new FileInfo(FilePrefix.GAME, relativePath);
             }
 
             // Couldn't determine source, return as-is
-            return new FileInfo("UNK", fname);
+            return new FileInfo(FilePrefix.UNK, fname);
         } catch (Exception e) {
-            return new FileInfo("UNK", fname);
+            return new FileInfo(FilePrefix.UNK, fname);
         }
     }
     

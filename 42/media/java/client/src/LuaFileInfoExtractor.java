@@ -22,14 +22,14 @@ public class LuaFileInfoExtractor {
                     : 0;
                 
                 if (info.prefix == null) {
-                    info.prefix = "UNK";
+                    info.prefix = FilePrefix.UNK;
                 }
                 
                 // Create a new FileInfo with the line number
                 return new FileInfo(info.prefix, info.relativePath, line);
             }
         }
-        return new FileInfo("UNK", funcObj != null ? funcObj.toString() : "null", 0);
+        return new FileInfo(FilePrefix.UNK, funcObj != null ? funcObj.toString() : "null", 0);
     }
 }
 

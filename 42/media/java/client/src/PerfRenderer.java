@@ -180,10 +180,11 @@ public class PerfRenderer {
                 String countStr = String.format("%5d", windowStats.count);
                 
                 // Extract first folder from path for LMOD/SMOD/WORKSHOP, otherwise use prefix
-                String prefix = info.prefix != null ? info.prefix : "UNK";
+                FilePrefix prefix = info.prefix != null ? info.prefix : FilePrefix.UNK;
                 String pathToDisplay = info.relativePath;
+                String prefixStr;
                 
-                if ("LMOD".equals(prefix) || "SMOD".equals(prefix) || "WMOD".equals(prefix)) {
+                if (prefix == FilePrefix.LMOD || prefix == FilePrefix.SMOD || prefix == FilePrefix.WMOD) {
                     // Extract first folder from path
                     String normalizedPath = pathToDisplay.replace('\\', '/');
                     int firstSlash = normalizedPath.indexOf('/');
@@ -191,18 +192,19 @@ public class PerfRenderer {
                         String firstFolder = normalizedPath.substring(0, firstSlash);
                         // Remove first folder from path
                         pathToDisplay = normalizedPath.substring(firstSlash + 1);
-                        prefix = firstFolder;
+                        prefixStr = firstFolder;
+                    } else {
+                        prefixStr = prefix.name();
                     }
+                } else {
+                    prefixStr = prefix.name();
                 }
                 
                 // Update max prefix width for this batch
-                int prefixLen = prefix.length();
+                int prefixLen = prefixStr.length();
                 if (prefixLen > currentMaxPrefixWidth[0]) {
                     currentMaxPrefixWidth[0] = prefixLen;
                 }
-                
-                // Store prefix without formatting (formatting will be done in getFullLine)
-                String prefixStr = prefix;
                 
                 // Format path (truncate if too long)
                 String fileDisplay = pathToDisplay + ":" + info.line;
