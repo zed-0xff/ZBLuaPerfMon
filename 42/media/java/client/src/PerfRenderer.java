@@ -13,6 +13,34 @@ public class PerfRenderer {
     private static int allTimeMaxWidth = 0;
     private static int maxPrefixWidth = 0; // Track maximum prefix column width
     
+    // Cached expensive-to-compute values (only recalculate when data or settings change)
+    private static int cachedTopN = 0;
+    private static int cachedX0 = Integer.MIN_VALUE;
+    private static int cachedY0 = Integer.MIN_VALUE;
+    private static int cachedScreenHeight = 0;
+    private static String cachedLongestLine = "";
+    
+    // Cached rendering values (computed only when shouldUpdate is true)
+    private static int cachedLineSpacing = 0;
+    private static int cachedTotalHeight = 0;
+    private static int cachedCurrentY = 0;
+    private static int cachedBackgroundWidth = 0;
+    private static int cachedBackgroundX = 0;
+    
+    // Pre-rendered line cache with colors
+    private static class CachedLine {
+        String text;
+        double r, g, b; // RGB color values
+        
+        CachedLine(String text, double r, double g, double b) {
+            this.text = text;
+            this.r = r;
+            this.g = g;
+            this.b = b;
+        }
+    }
+    private static List<CachedLine> cachedLines = new java.util.ArrayList<>();
+    
     // Helper class to hold formatted call data with color info
     private static class FormattedCall {
         String timeStr;
@@ -81,73 +109,60 @@ public class PerfRenderer {
         int x0 = ZBLuaPerfMon.osdX;
         int y0 = ZBLuaPerfMon.osdY;
 
-        // Update cached data if needed
-        if (shouldUpdate || cachedTopCalls.isEmpty() || cachedWindowDurationMS != windowDurationMS) {
-            cachedTopCalls = getTopCalls(topN, windowDurationMS);
-            cachedWindowDurationMS = windowDurationMS;
-            lastUpdateTime = currentTime;
-        }
-
         var font = UIFont.CodeSmall;
         var scrH = core.getScreenHeight();
 
-        // Measure text height for spacing
-        String sampleText = "XXX";
-        var textH = textMgr.MeasureStringY(font, sampleText);
-        var lineSpacing = textH + 2; // Add 2 pixels spacing between lines
+        // Update cached data only when update interval has elapsed
+        if (shouldUpdate) {
+            cachedTopCalls = getTopCalls(topN, windowDurationMS);
+            cachedWindowDurationMS = windowDurationMS;
+            lastUpdateTime = currentTime;
+            
+            // Store settings for reference
+            cachedTopN = topN;
+            cachedX0 = x0;
+            cachedY0 = y0;
+            cachedScreenHeight = scrH;
 
-        // Calculate total height needed (header + topN entries)
-        // Always use full height regardless of actual number of entries
-        int totalHeight = (topN + 1) * lineSpacing;
-
-        // Calculate Y position
-        int currentY = y0;
-        if (y0 < 0) {
-            currentY = scrH + y0 - totalHeight + 1; // y0 is negative offset from bottom
-        }
-
-        // Calculate background width (find longest line, then measure it)
-        String header = "Top " + topN + " Lua Calls (last " + (windowDurationMS / 1000) + "s):";
-        String longestLine = header;
-        if (cachedTopCalls.isEmpty()) {
-            // If no data, show a placeholder message
-            longestLine = header + " (no data)";
-        } else {
-        for (FormattedCall call : cachedTopCalls) {
-            String line = call.getFullLine(maxPrefixWidth);
-            if (line.length() > longestLine.length()) {
-                longestLine = line;
+            // Pre-format all lines with colors and find longest (expensive operations)
+            String header = "Top " + topN + " Lua Calls (last " + (windowDurationMS / 1000) + "s):";
+            cachedLines.clear();
+            // Add header as first line (white color)
+            cachedLines.add(new CachedLine(header, 1.0, 1.0, 1.0));
+            cachedLongestLine = header;
+            // Add formatted call lines with their colors
+            for (FormattedCall call : cachedTopCalls) {
+                String line = call.getFullLine(maxPrefixWidth);
+                cachedLines.add(new CachedLine(line, call.r, call.g, call.b));
+                if (line.length() > cachedLongestLine.length()) {
+                    cachedLongestLine = line;
                 }
             }
+            // Measure longest line width (expensive operation)
+            int maxWidth = textMgr.MeasureStringX(font, cachedLongestLine);
+            if (maxWidth > allTimeMaxWidth) {
+                allTimeMaxWidth = maxWidth;
+            }
+            
+            // Compute and cache all rendering values
+            int textHeight = textMgr.MeasureStringY(font, "XXX");
+            cachedLineSpacing = textHeight + 2;
+            cachedTotalHeight = (topN + 1) * cachedLineSpacing;
+            cachedCurrentY = (y0 < 0) ? scrH + y0 - cachedTotalHeight + 1 : y0;
+            cachedBackgroundWidth = allTimeMaxWidth + 10;
+            cachedBackgroundX = x0 - 5;
         }
-        int maxWidth = textMgr.MeasureStringX(font, longestLine);
-        if (maxWidth > allTimeMaxWidth) {
-            allTimeMaxWidth = maxWidth;
-        } else {
-            maxWidth = allTimeMaxWidth;
-        }
-        int backgroundWidth = maxWidth + 10; // Add padding
-        int backgroundX = x0 - 5; // Add left padding
 
         // Draw dark background if opacity > 0
         if (backgroundAlpha > 0.0f) {
-            SpriteRenderer.instance.renderRect(backgroundX, currentY, backgroundWidth, totalHeight, 0.0f, 0.0f, 0.0f, backgroundAlpha);
+            SpriteRenderer.instance.renderRect(cachedBackgroundX, cachedCurrentY, cachedBackgroundWidth, cachedTotalHeight, 0.0f, 0.0f, 0.0f, backgroundAlpha);
         }
 
-        // Draw header at the top (always draw, even if no data)
-        String headerText = cachedTopCalls.isEmpty() 
-            ? header + " (no data)"
-            : header;
-        textMgr.DrawString(font, x0, currentY, headerText, 1.0, 1.0, 1.0, alpha);
-        currentY += lineSpacing;
-
-        // Draw each call below the header (in order: 1, 2, 3, ...)
-        for (int i = 0; i < cachedTopCalls.size(); i++) {
-            FormattedCall call = cachedTopCalls.get(i);
-            String line = call.getFullLine(maxPrefixWidth);
-            // Use stored RGB color values
-            textMgr.DrawString(font, x0, currentY, line, call.r, call.g, call.b, alpha);
-            currentY += lineSpacing;
+        // Draw all pre-rendered lines from cache
+        int drawY = cachedCurrentY;
+        for (CachedLine cachedLine : cachedLines) {
+            textMgr.DrawString(font, x0, drawY, cachedLine.text, cachedLine.r, cachedLine.g, cachedLine.b, alpha);
+            drawY += cachedLineSpacing;
         }
     }
         
