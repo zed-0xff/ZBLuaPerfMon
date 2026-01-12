@@ -1,0 +1,34 @@
+[h1]ZBLuaPerfMon[/h1]
+
+A Project Zomboid mod that provides a real-time On-Screen Display (OSD) and logging for monitoring Lua function performance.
+
+[b]Features:[/b]
+[list]
+[*] [b]Real-time OSD:[/b] View top time-consuming Lua functions directly in-game.
+[*] [b]Detailed Logging:[/b] Periodic logging of performance statistics to the console.
+[*] [b]Configurable OSD:[/b] Customize the number of functions shown, minimum time threshold, update interval, and visual appearance.
+[*] [b]Smart Filtering:[/b] Categorizes functions by source (Mod, Game, or Internal).
+[*] [b]Mod Options Integration:[/b] Easily configure all settings through the game's mod options menu.
+[*] [b]Toggleable OSD:[/b] Bind a key to quickly show/hide the performance monitor.
+[/list]
+
+[b]What it does:[/b]
+ZBLuaPerfMon hooks into the game's Lua execution engine to track the execution time of Lua functions. It provides a real-time OSD showing the most time-consuming functions and can log detailed statistics to the console. This is an essential tool for modders to identify and optimize performance bottlenecks in their Lua scripts.
+
+[b]📦 Installation:[/b]
+1. [b]Prerequisites:[/b] You must have [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3423115544]ZombieBuddy[/url] installed and configured first.
+2. [b]Enable the mod:[/b] Enable ZBLuaPerfMon in the Project Zomboid mod manager.
+
+[b]How It Works:[/b]
+ZBLuaPerfMon uses ZombieBuddy to patch core Lua execution methods. It uses high-precision nanosecond timing to measure execution duration and categorizes functions by parsing their source paths.
+
+[b]Links:[/b]
+[url=https://github.com/zed-0xff/ZBLuaPerfMon]GitHub Repository[/url]
+[url=https://github.com/zed-0xff/ZombieBuddy]ZombieBuddy Framework[/url]
+
+[b]☕ Support the Developer:[/b]
+If you find this mod useful, consider supporting the developer with a coffee:
+[url=https://ko-fi.com/zed_0xff][img]https://i.imgur.com/Utx6OIH.png[/img][/url]
+
+[b]⚠️ Disclaimer:[/b]
+This mod modifies core game Lua execution behavior. While designed for performance monitoring, the overhead of tracking every Lua call may slightly impact game performance when enabled. Use at your own risk.
