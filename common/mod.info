@@ -8,3 +8,4 @@ icon=modIcon.png
 require=\ZombieBuddy
 javaJarFile=media/java/client/build/libs/client.jar
 javaPkgName=me.zed_0xff.zb_lua_perf_mon
+ZBVersionMin=1.6.0
