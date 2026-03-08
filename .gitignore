@@ -4,4 +4,6 @@
 *.log
 *.tmp
 *.swp
-reports
+
+build
+tmp

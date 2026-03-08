@@ -1,0 +1,61 @@
+plugins { id 'java' }
+
+def osName = System.getProperty("os.name").toLowerCase()
+def HOME_DIR = System.getProperty("user.home")
+
+def CUR_GAME_DIR = "${HOME_DIR}/Library/Application Support/Steam/steamapps/common/ProjectZomboid/Project Zomboid.app/Contents/Java"
+
+// ZVersion: dotted game version (e.g. 41, 42.12, 42.13) — drives GAME_DIR, archiveBaseName, and source variant
+def ZVersion = findProperty('ZVersion')
+if (!ZVersion) throw new GradleException('ZVersion must be set (e.g. -PZVersion=42.13)')
+
+def variant = 'B' + ZVersion.replace('.', '_')
+def GAME_DIR = "${HOME_DIR}/projects/zomboid/versions/${ZVersion}"
+
+dependencies {
+    compileOnly files("${CUR_GAME_DIR}/ZombieBuddy.jar")
+    if (variant == 'B41' || variant == 'B42' || variant == 'B42_12') {
+        compileOnly files("${GAME_DIR}/java")
+    } else {
+        compileOnly files("${GAME_DIR}/java/ProjectZomboid.jar")
+    }
+}
+
+def MOD_ID = project.projectDir.parentFile.name
+jar {
+    archiveBaseName.set("${MOD_ID}-${ZVersion}")
+}
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+// place all .java files in the 'src' directory
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src']
+            include '**/*.java'
+        }
+    }
+}
+
+// disable annotation processing, JNI headers, and incremental compilation
+tasks.withType(JavaCompile).configureEach {
+    options.annotationProcessorPath = files()
+    options.generatedSourceOutputDirectory.set(provider { null })
+    options.headerOutputDirectory.set(provider { null })
+    options.incremental = false
+}
+
+tasks.register("cleanup") {
+    doLast {
+        delete "${buildDir}/tmp"
+        delete "${buildDir}/classes"
+    }
+}
+
+tasks.named("build") {
+    finalizedBy("cleanup")
+}
