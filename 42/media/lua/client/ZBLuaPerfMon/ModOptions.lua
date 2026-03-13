@@ -63,7 +63,7 @@ options:addSeparator()
 options:addTitle("Log")
 
 -- Log Enabled
-config.logEnabled = options:addTickBox("logEnabled", "Enable Logging", true, "Enable or disable console logging of performance statistics")
+config.logEnabled = options:addTickBox("logEnabled", "Enable Logging", false, "Enable or disable console logging of performance statistics")
 
 -- Log When OSD Off
 config.logWhenOSDOff = options:addTickBox("logWhenOSDOff", "Log When OSD Off", false, "Continue writing logs even when OSD is disabled (default: off)")
