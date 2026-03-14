@@ -99,7 +99,7 @@ public class PerfRenderer {
         // Check if we need to update based on update interval
         long currentTime = System.nanoTime();
         long updateIntervalNS = ZBLuaPerfMon.osdUpdateIntervalMS * 1_000_000L; // Convert ms to ns
-        boolean shouldUpdate = (currentTime - lastUpdateTime) >= updateIntervalNS;
+        boolean shouldUpdate = ((currentTime - lastUpdateTime) >= updateIntervalNS) && !ZBLuaPerfMon.osdFrozen;
 
         // Get parameters from ZBLuaPerfMon
         int topN = ZBLuaPerfMon.osdTopN;

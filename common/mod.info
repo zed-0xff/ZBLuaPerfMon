@@ -1,9 +1,9 @@
-name=ZBLuaPerfMon
+name=LuaPerfMon
+description=Lua Performance Monitor
 id=ZBLuaPerfMon
 author=Zed
 url=https://github.com/zed-0xff
-poster=poster.png
-icon=modIcon.png
+poster=preview.png
 
 require=\ZombieBuddy
 javaJarFile=media/java/client/ZBLuaPerfMon.jar

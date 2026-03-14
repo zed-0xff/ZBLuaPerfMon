@@ -1,25 +1,23 @@
--- ModOptions for ZBLuaPerfMon
--- This file creates the mod options UI and connects them to Java setters
-
-local MOD_ID = "ZBLuaPerfMon"
+local MOD_ID   = "ZBLuaPerfMon"
 local MOD_NAME = "LuaPerfMon"
 
 local config = {
-    osdX = nil,
-    osdY = nil,
-    osdAlpha = nil,
-    osdBackgroundAlpha = nil,
-    osdWindowMS = nil,
-    osdUpdateIntervalMS = nil,
-    osdTopN = nil,
-    osdMinTimeMS = nil,
-    excludeGameEntries = nil,
-    logEnabled = nil,
-    logWhenOSDOff = nil,
-    logIntervalSeconds = nil,
-    minTimeMicroseconds = nil,
+    osdX                     = nil,
+    osdY                     = nil,
+    osdAlpha                 = nil,
+    osdBackgroundAlpha       = nil,
+    osdWindowMS              = nil,
+    osdUpdateIntervalMS      = nil,
+    osdTopN                  = nil,
+    osdMinTimeMS             = nil,
+    excludeGameEntries       = nil,
+    logEnabled               = nil,
+    logWhenOSDOff            = nil,
+    logIntervalSeconds       = nil,
+    minTimeMicroseconds      = nil,
     trackInternalPerformance = nil,
-    toggleOSDKey = nil,
+    toggleOSDKey             = nil,
+    freezeOSDKey             = nil,
 }
 
 local options = PZAPI.ModOptions:create(MOD_ID, MOD_NAME)
@@ -27,34 +25,60 @@ local options = PZAPI.ModOptions:create(MOD_ID, MOD_NAME)
 -- OSD (On-Screen Display) Settings
 options:addTitle("OSD")
 
--- Toggle OSD Hotkey
-config.toggleOSDKey = options:addKeyBind("toggleOSDKey", "Toggle OSD Hotkey", Keyboard.KEY_NONE, "Hotkey to toggle the OSD overlay on/off")
+config.toggleOSDKey = options:addKeyBind(  "toggleOSDKey", "Toggle OSD Hotkey", Keyboard.KEY_NONE, "Hotkey to toggle the OSD overlay on/off")
+config.freezeOSDKey = options:addKeyBind(  "freezeOSDKey", "Freeze OSD Hotkey", Keyboard.KEY_NONE, "Hotkey to freeze/unfreeze the OSD display (pauses updating, allowing you to inspect the current stats)")
 
--- OSD Position X
-config.osdX = options:addTextEntry("osdX", "X", "0", "Horizontal position of the OSD overlay. Negative values move left, positive values move right.")
+config.osdX     = options:addTextEntry("osdX", "X", "0", "Horizontal position of the OSD overlay. Negative values move left, positive values move right.")
+config.osdY     = options:addTextEntry("osdY", "Y", "-1", "Vertical position of the OSD overlay. -1 = bottom, negative values move up, positive values move down.")
+config.osdAlpha = options:addSlider(   "osdAlpha", "Alpha", 0.0, 1.0, 0.05, 0.7, "Transparency of the OSD overlay (0.0 = fully transparent, 1.0 = fully opaque)")
 
--- OSD Position Y
-config.osdY = options:addTextEntry("osdY", "Y", "-1", "Vertical position of the OSD overlay. -1 = bottom, negative values move up, positive values move down.")
+config.osdBackgroundAlpha = options:addSlider(
+    "osdBackgroundAlpha",
+    "Background Alpha",
+     0.0,  -- min
+     1.0,  -- max
+     0.05, -- step
+     0.5,  -- default
+    "Transparency of the dark background behind the OSD (0.0 = no background, 1.0 = fully opaque)"
+)
 
--- OSD Alpha/Transparency
-config.osdAlpha = options:addSlider("osdAlpha", "Alpha", 0.0, 1.0, 0.05, 0.7, "Transparency of the OSD overlay (0.0 = fully transparent, 1.0 = fully opaque)")
+config.osdWindowMS = options:addSlider(
+    "osdWindowMS", 
+    "Time Window (ms)", 
+     100, 
+   30000, 
+     100, 
+    1000, 
+    "Time window in milliseconds for the OSD statistics (how far back to look)"
+)
 
--- OSD Background Alpha/Transparency
-config.osdBackgroundAlpha = options:addSlider("osdBackgroundAlpha", "Background Alpha", 0.0, 1.0, 0.05, 0.5, "Transparency of the dark background behind the OSD (0.0 = no background, 1.0 = fully opaque)")
+config.osdUpdateIntervalMS = options:addSlider(
+    "osdUpdateIntervalMS",
+    "Update Interval (ms)",
+     100,
+    3000,
+     100,
+    1000,
+    "How often to update the OSD display in milliseconds"
+)
 
--- OSD Window Duration
-config.osdWindowMS = options:addSlider("osdWindowMS", "Time Window (ms)", 100, 30000, 100, 3000, "Time window in milliseconds for the OSD statistics (how far back to look)")
+config.osdTopN = options:addSlider(
+    "osdTopN",
+    "Top N Entries",
+     5,
+    50,
+     1,
+    10,
+    "Number of top entries to display in the OSD"
+)
 
--- OSD Update Interval
-config.osdUpdateIntervalMS = options:addSlider("osdUpdateIntervalMS", "Update Interval (ms)", 100, 3000, 100, 1000, "How often to update the OSD display in milliseconds")
+config.osdMinTimeMS = options:addTextEntry(
+    "osdMinTimeMS",
+    "Min Time (ms)",
+    "0.1",
+    "Don't show entries with total time less than this value (i.e. 0.1 is a 1/10000 of a second)"
+)
 
--- OSD Top N Entries
-config.osdTopN = options:addSlider("osdTopN", "Top N Entries", 5, 50, 1, 10, "Number of top entries to display in the OSD")
-
--- OSD Minimum Time Threshold
-config.osdMinTimeMS = options:addTextEntry("osdMinTimeMS", "Min Time (ms)", "0.1", "Don't show entries with total time less than this value in milliseconds")
-
--- Exclude GAME Entries
 config.excludeGameEntries = options:addTickBox("excludeGameEntries", "Exclude GAME Entries", false, "Don't track or display entries from the base game (GAME prefix)")
 
 options:addSeparator()
@@ -62,17 +86,11 @@ options:addSeparator()
 -- Logging Settings
 options:addTitle("Log")
 
--- Log Enabled
-config.logEnabled = options:addTickBox("logEnabled", "Enable Logging", false, "Enable or disable console logging of performance statistics")
-
--- Log When OSD Off
-config.logWhenOSDOff = options:addTickBox("logWhenOSDOff", "Log When OSD Off", false, "Continue writing logs even when OSD is disabled (default: off)")
-
--- Log Interval
-config.logIntervalSeconds = options:addSlider("logIntervalSeconds", "Log Interval (seconds)", 1, 60, 1, 5, "How often to log performance statistics")
-
--- Track Internal Performance
+config.logEnabled               = options:addTickBox("logEnabled", "Enable Logging", false, "Enable or disable console logging of performance statistics")
+config.logWhenOSDOff            = options:addTickBox("logWhenOSDOff", "Log When OSD Off", false, "Continue writing logs even when OSD is disabled (default: off)")
+config.logIntervalSeconds       = options:addSlider( "logIntervalSeconds", "Log Interval (seconds)", 1, 60, 1, 5, "How often to log performance statistics")
 config.trackInternalPerformance = options:addTickBox("trackInternalPerformance", "Track LuaPerfMon Performance", false, "Track performance of the monitoring system itself")
+
 
 -- Override the apply function to update Java values
 options.apply = function(self)
@@ -131,12 +149,19 @@ options.apply = function(self)
         ZBLuaPerfMon.setTrackInternalPerformance(config.trackInternalPerformance:getValue())
     end
     
-    -- Apply keybinding
+    -- Apply keybindings
     if config.toggleOSDKey then
         local keyCode = config.toggleOSDKey:getValue()
         if keyCode then
             -- Register the keybinding with the core
             getCore():addKeyBinding("Toggle LuaPerfMon OSD", tonumber(keyCode) or 0, 0, false, false, false)
+        end
+    end
+    if config.freezeOSDKey then
+        local keyCode = config.freezeOSDKey:getValue()
+        if keyCode then
+            -- Register the keybinding with the core
+            getCore():addKeyBinding("Freeze LuaPerfMon OSD", tonumber(keyCode) or 0, 0, false, false, false)
         end
     end
 end

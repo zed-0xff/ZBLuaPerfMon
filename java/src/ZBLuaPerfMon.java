@@ -45,11 +45,12 @@ public class ZBLuaPerfMon {
         osdMinTimeMS = minTimeMS;
     }
 
-    public static int logIntervalSeconds = 5;
-    public static long minTimeMicroseconds = 10; // 10 microseconds = 10,000 nanoseconds
-    public static boolean osdEnabled = true; // OSD is enabled by default
-    public static boolean logWhenOSDOff = false; // Don't log when OSD is off by default
-    public static boolean excludeGameEntries = false; // Don't track GAME entries by default
+    public static int logIntervalSeconds     = 5;
+    public static long minTimeMicroseconds   = 10; // 10 microseconds = 10,000 nanoseconds
+    public static boolean osdEnabled         = true;
+    public static boolean osdFrozen          = false;
+    public static boolean logWhenOSDOff      = false;
+    public static boolean excludeGameEntries = false;
 
     public static void setLogIntervalSeconds(int seconds) {
         logIntervalSeconds = seconds;
@@ -75,6 +76,16 @@ public class ZBLuaPerfMon {
 
     public static boolean getOSDEnabled() {
         return osdEnabled;
+    }
+
+    public static boolean toggleOSD() {
+        osdEnabled = !osdEnabled;
+        return osdEnabled;
+    }
+
+    public static boolean toggleOSDFreeze() {
+        osdFrozen = !osdFrozen;
+        return osdFrozen;
     }
 
     public static boolean getLogWhenOSDOff() {
