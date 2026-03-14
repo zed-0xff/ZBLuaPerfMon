@@ -23,7 +23,7 @@ ZBLuaPerfMon hooks into the game's Lua execution engine to track the execution t
 [/list]
 
 [b]📦 Installation:[/b]
-1. [b]Prerequisites:[/b] You must have [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3423115544]ZombieBuddy[/url] installed and configured first.
+1. [b]Prerequisites:[/b] You must have [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3619862853]ZombieBuddy[/url] installed and configured first.
 2. [b]Enable the mod:[/b] Enable ZBLuaPerfMon in the Project Zomboid mod manager.
 
 [b]Links:[/b]
